@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【報名儀表板】生成式 AI 驅動教學工作坊</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Quicksand"', '"Noto Sans TC"', 'sans-serif'] },
+                    colors: {
+                        earth: {
+                            50: '#F9F8F6', 100: '#F0ECE1', 200: '#E1D7C6', 300: '#D4C4B7',
+                            400: '#A3B19B', 500: '#8A9A80', 600: '#D98A6C', 700: '#C27457',
+                            800: '#5C5248', 900: '#4A4036',
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 40px -10px rgba(74, 64, 54, 0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #F9F8F6; color: #4A4036; overflow-x: hidden; }
+        .organic-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 30px;
+        }
+        /* 滾動條美化 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #F0ECE1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #D4C4B7; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #A3B19B; }
+        
+        /* Loading 動畫 */
+        .loader {
+            border: 4px solid #F0ECE1;
+            border-top: 4px solid #A3B19B;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="antialiased min-h-screen relative p-4 md:p-8">
+
+    <!-- Loading 遮罩 -->
+    <div id="loadingOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-earth-50/90 backdrop-blur-sm p-4">
+        <!-- 內容由 JS 動態注入 -->
+    </div>
+
+    <div class="max-w-7xl mx-auto">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-earth-900 flex items-center gap-3">
+                    <i data-lucide="layout-dashboard" class="w-8 h-8 text-earth-600"></i>
+                    工作坊報名儀表板
+                </h1>
+                <p class="text-earth-600 mt-2">即時同步 Google Sheets 報名資料</p>
+            </div>
+            <button onclick="fetchData()" class="flex items-center gap-2 bg-earth-400 hover:bg-earth-500 text-white px-6 py-3 rounded-full font-bold transition-all shadow-md hover:shadow-lg">
+                <i data-lucide="refresh-cw" id="refreshIcon" class="w-5 h-5"></i>
+                更新數據
+            </button>
+        </header>
+
+        <!-- KPI 數據卡片區 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="organic-card p-6 shadow-soft flex items-center gap-4 border-l-4 border-l-earth-400">
+                <div class="p-3 bg-earth-100 rounded-2xl text-earth-500"><i data-lucide="users" class="w-8 h-8"></i></div>
+                <div>
+                    <p class="text-sm font-bold text-earth-600">總報名人數</p>
+                    <p class="text-3xl font-bold text-earth-900" id="kpiTotal">0</p>
+                </div>
+            </div>
+            <div class="organic-card p-6 shadow-soft flex items-center gap-4 border-l-4 border-l-earth-600">
+                <div class="p-3 bg-earth-100 rounded-2xl text-earth-600"><i data-lucide="coffee" class="w-8 h-8"></i></div>
+                <div>
+                    <p class="text-sm font-bold text-earth-600">需要茶水點心</p>
+                    <p class="text-3xl font-bold text-earth-900" id="kpiSnacks">0</p>
+                </div>
+            </div>
+            <div class="organic-card p-6 shadow-soft flex items-center gap-4 border-l-4 border-l-earth-300">
+                <div class="p-3 bg-earth-100 rounded-2xl text-earth-800"><i data-lucide="brain-circuit" class="w-8 h-8"></i></div>
+                <div>
+                    <p class="text-sm font-bold text-earth-600">平均 AI 信心分數</p>
+                    <p class="text-3xl font-bold text-earth-900" id="kpiConfidence">0.0</p>
+                </div>
+            </div>
+            <div class="organic-card p-6 shadow-soft flex items-center gap-4 border-l-4 border-l-[#C27457]">
+                <div class="p-3 bg-earth-100 rounded-2xl text-[#C27457]"><i data-lucide="clock-4" class="w-8 h-8"></i></div>
+                <div>
+                    <p class="text-sm font-bold text-earth-600">最新報名時間</p>
+                    <p class="text-lg font-bold text-earth-900 truncate" id="kpiLastTime">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖表區 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- 職稱分佈 -->
+            <div class="organic-card p-6 shadow-soft">
+                <h3 class="text-lg font-bold text-earth-900 mb-4 flex items-center gap-2">
+                    <i data-lucide="pie-chart" class="w-5 h-5 text-earth-600"></i> 參與者職稱分佈
+                </h3>
+                <div class="relative h-64 w-full flex justify-center">
+                    <canvas id="jobChart"></canvas>
+                </div>
+            </div>
+            <!-- AI 使用頻率 -->
+            <div class="organic-card p-6 shadow-soft">
+                <h3 class="text-lg font-bold text-earth-900 mb-4 flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-earth-600"></i> 目前 AI 工具使用頻率
+                </h3>
+                <div class="relative h-64 w-full">
+                    <canvas id="freqChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 需求痛點統計 -->
+        <div class="organic-card p-6 shadow-soft mb-8">
+            <h3 class="text-lg font-bold text-earth-900 mb-4 flex items-center gap-2">
+                <i data-lucide="target" class="w-5 h-5 text-earth-600"></i> 期望解決的需求痛點排行
+            </h3>
+            <div class="relative h-64 w-full">
+                <canvas id="painChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 報名明細表 -->
+        <div class="organic-card p-6 shadow-soft overflow-hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-lg font-bold text-earth-900 flex items-center gap-2">
+                    <i data-lucide="list-collapse" class="w-5 h-5 text-earth-600"></i> 報名資料明細
+                </h3>
+            </div>
+            <div class="overflow-x-auto pb-4">
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead>
+                        <tr class="text-earth-600 border-b border-earth-200">
+                            <th class="py-3 px-4 font-bold">報名時間</th>
+                            <th class="py-3 px-4 font-bold">姓名</th>
+                            <th class="py-3 px-4 font-bold">單位</th>
+                            <th class="py-3 px-4 font-bold">職稱</th>
+                            <th class="py-3 px-4 font-bold">信心分數</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="text-earth-900 divide-y divide-earth-100">
+                        <!-- 資料由 JS 動態生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 初始化 Lucide Icons
+        lucide.createIcons();
+
+        // 您的 Apps Script Web App URL
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwhPMtiOlK-9dUwYV02UQt7xxYAA3lO9gMIUY2_9AHOVcTV1IuQk3-KDDFbMQALqGefqA/exec';
+
+        // 儲存圖表實例以便後續更新
+        let charts = { job: null, freq: null, pain: null };
+
+        // 全域配色色票
+        const chartColors = ['#A3B19B', '#D98A6C', '#E1D7C6', '#8A9A80', '#D4C4B7', '#5C5248'];
+
+        // 顯示載入動畫
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.innerHTML = `
+                <div class="loader mb-4"></div>
+                <p class="text-earth-800 font-bold text-lg tracking-widest animate-pulse">正在載入最新報名數據...</p>
+            `;
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        // 顯示錯誤排解提示
+        function showError(errorMessage) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.innerHTML = `
+                <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-lg text-center border border-earth-200 w-full">
+                    <div class="text-[#D98A6C] mb-4 flex justify-center">
+                        <i data-lucide="alert-circle" class="w-16 h-16"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-earth-900 mb-3">連線失敗 (CORS / 無法取得資料)</h3>
+                    
+                    <div class="text-earth-800 text-sm mb-6 text-left space-y-2 bg-earth-50 p-5 rounded-xl border border-earth-200">
+                        <p class="text-earth-900 font-bold mb-3">🛠️ 這通常是因為 Google Apps Script 尚未正確更新部署。請執行以下步驟：</p>
+                        <ol class="list-decimal list-inside space-y-2 ml-1">
+                            <li>回到 Apps Script 編輯器，點擊右上角「部署」 > 「管理部署作業」</li>
+                            <li>點擊目前版本旁邊的「鉛筆圖示 (編輯)」</li>
+                            <li>在「版本」下拉選單中，務必選擇 <b class="text-[#D98A6C]">「建立新版本」</b></li>
+                            <li>確保執行身分為「我」，誰可以存取為 <b class="text-[#D98A6C]">「所有人」</b></li>
+                            <li>點擊「部署」後，再回到此頁面重試</li>
+                        </ol>
+                        <p class="text-xs text-earth-600 mt-4 border-t border-earth-200 pt-3">詳細錯誤: ${errorMessage}</p>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
+                        <button onclick="location.reload()" class="bg-earth-400 hover:bg-earth-500 text-white px-6 py-3 rounded-full font-bold transition-all shadow-md">
+                            我已更新，重新載入
+                        </button>
+                        <button onclick="hideOverlay()" class="bg-earth-200 hover:bg-earth-300 text-earth-900 px-6 py-3 rounded-full font-bold transition-all shadow-md">
+                            先關閉提示
+                        </button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            loadingOverlay.classList.remove('hidden');
+        }
+
+        function hideOverlay() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        // 抓取資料主函數
+        async function fetchData() {
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('animate-spin');
+            showLoading();
+
+            try {
+                // 發送 GET 請求 (明確加上 redirect 設定以配合 Apps Script)
+                const response = await fetch(scriptURL, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.result === 'success') {
+                    processData(result.data);
+                    hideOverlay();
+                } else {
+                    throw new Error(result.message || 'Apps Script 回傳錯誤');
+                }
+            } catch (error) {
+                console.error('Fetch Error Details:', error);
+                showError(error.message);
+            } finally {
+                refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        // 處理並渲染資料
+        function processData(data) {
+            // 防錯：沒有資料時
+            if (!data || data.length === 0) {
+                document.getElementById('kpiTotal').innerText = '0';
+                return;
+            }
+
+            // 1. 計算 KPI 統計
+            let total = data.length;
+            let snacksCount = 0;
+            let confidenceSum = 0;
+            let jobCounts = {};
+            let freqCounts = { '重度': 0, '中度': 0, '輕度': 0, '新手': 0 };
+            let painCounts = {};
+
+            data.forEach(row => {
+                // 茶水計算
+                if (row['茶水點心'] === '是' || row['茶水點心'] === '是，我需要') snacksCount++;
+                
+                // 信心分數計算
+                let conf = parseInt(row['AI信心分數']);
+                if (!isNaN(conf)) confidenceSum += conf;
+
+                // 職稱統計
+                let job = row['職稱'] || '未填寫';
+                jobCounts[job] = (jobCounts[job] || 0) + 1;
+
+                // 使用頻率統計
+                let freq = row['AI使用頻率'] || '未填寫';
+                if (freqCounts[freq] !== undefined) freqCounts[freq]++;
+                else freqCounts[freq] = 1;
+
+                // 需求痛點統計 (因可複選，需切割字串)
+                if (row['需求痛點']) {
+                    let pains = row['需求痛點'].split(',').map(p => p.trim());
+                    pains.forEach(p => {
+                        if (p) painCounts[p] = (painCounts[p] || 0) + 1;
+                    });
+                }
+            });
+
+            // 更新 KPI 畫面
+            document.getElementById('kpiTotal').innerText = total;
+            document.getElementById('kpiSnacks').innerText = snacksCount;
+            document.getElementById('kpiConfidence').innerText = (confidenceSum / total).toFixed(1);
+            
+            // 格式化最新時間
+            const lastRow = data[data.length - 1];
+            let lastTimeStr = '-';
+            if (lastRow['報名時間']) {
+                const date = new Date(lastRow['報名時間']);
+                lastTimeStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+            }
+            document.getElementById('kpiLastTime').innerText = lastTimeStr;
+
+            // 2. 渲染圖表
+            renderJobChart(jobCounts);
+            renderFreqChart(freqCounts);
+            renderPainChart(painCounts);
+
+            // 3. 渲染表格 (反轉陣列讓最新的在上面)
+            renderTable([...data].reverse());
+        }
+
+        // 繪製職稱圓餅圖
+        function renderJobChart(jobCounts) {
+            const ctx = document.getElementById('jobChart').getContext('2d');
+            if (charts.job) charts.job.destroy();
+            
+            charts.job = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(jobCounts),
+                    datasets: [{
+                        data: Object.values(jobCounts),
+                        backgroundColor: chartColors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { font: { family: "'Noto Sans TC', sans-serif" } } } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // 繪製使用頻率長條圖
+        function renderFreqChart(freqCounts) {
+            const ctx = document.getElementById('freqChart').getContext('2d');
+            if (charts.freq) charts.freq.destroy();
+            
+            // 固定排序
+            const labels = ['重度', '中度', '輕度', '新手'];
+            const data = labels.map(label => freqCounts[label] || 0);
+
+            charts.freq = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '人數',
+                        data: data,
+                        backgroundColor: '#A3B19B',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // 繪製需求痛點橫向長條圖
+        function renderPainChart(painCounts) {
+            const ctx = document.getElementById('painChart').getContext('2d');
+            if (charts.pain) charts.pain.destroy();
+            
+            // 依數值排序
+            let sortedPains = Object.entries(painCounts).sort((a, b) => b[1] - a[1]);
+            let labels = sortedPains.map(item => item[0]);
+            let data = sortedPains.map(item => item[1]);
+
+            charts.pain = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '次數',
+                        data: data,
+                        backgroundColor: '#D98A6C',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // 變更為橫向
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // 繪製表格
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(row => {
+                let timeStr = '';
+                if (row['報名時間']) {
+                    const date = new Date(row['報名時間']);
+                    timeStr = `${date.getFullYear()}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getDate().toString().padStart(2,'0')} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-earth-50/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-sm">${timeStr}</td>
+                    <td class="py-3 px-4 font-bold">${row['姓名'] || '-'}</td>
+                    <td class="py-3 px-4">${row['單位'] || '-'}</td>
+                    <td class="py-3 px-4"><span class="bg-earth-200 px-3 py-1 rounded-full text-xs font-bold">${row['職稱'] || '-'}</span></td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="star" class="w-4 h-4 text-earth-600 fill-earth-600"></i>
+                            ${row['AI信心分數'] || '-'}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            lucide.createIcons(); // 重新渲染表格內的圖標
+        }
+
+        // 初始載入
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
